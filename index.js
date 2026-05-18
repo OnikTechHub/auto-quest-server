@@ -1,0 +1,43 @@
+
+const dns = require('node:dns');
+dns.setServers(['8.8.8.8', '8.8.4.4']);
+
+const express = require('express');
+const { MongoClient, ServerApiVersion } = require('mongodb');
+require('dotenv').config();
+
+const app = express();
+
+const PORT = process.env.PORT 
+
+
+const uri = process.env.MONGO_URI;
+
+const client = new MongoClient(uri, {
+  serverApi: {
+    version: ServerApiVersion.v1,
+    strict: true,
+    deprecationErrors: true,
+  }
+});
+
+async function run() {
+  try {
+    
+    await client.connect();
+    console.log("Connected to MongoDB successfully! 🎉");
+    
+  } catch (error) {
+    console.error("Database connection error:", error);
+  }
+}
+run().catch(console.dir);
+
+app.get('/', (req, res) => {
+    res.send("Server running fine with Database connection status checking...");
+});
+
+
+app.listen(PORT, () => {
+    console.log(`Server is perfectly running on port: ${PORT}`);
+});
