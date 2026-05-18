@@ -1,4 +1,3 @@
-
 const dns = require('node:dns');
 dns.setServers(['8.8.8.8', '8.8.4.4']);
 
@@ -7,9 +6,9 @@ const { MongoClient, ServerApiVersion } = require('mongodb');
 require('dotenv').config();
 
 const app = express();
-
 const PORT = process.env.PORT 
 
+app.use(express.json());
 
 const uri = process.env.MONGO_URI;
 
@@ -23,9 +22,23 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    
     await client.connect();
     console.log("Connected to MongoDB successfully! 🎉");
+
+    const db = client.db("autoQuestDB");
+    const carsCollection = db.collection("cars");
+
+
+    app.post("/api/cars", async (req, res) => {
+      try {
+        const newCar = req.body; 
+        const result = await carsCollection.insertOne(newCar);
+        
+        res.status(201).send({ success: true, insertedId: result.insertedId });
+      } catch (error) {
+        res.status(500).send({ success: false, message: error.message });
+      }
+    });
     
   } catch (error) {
     console.error("Database connection error:", error);
@@ -34,9 +47,8 @@ async function run() {
 run().catch(console.dir);
 
 app.get('/', (req, res) => {
-    res.send("Server running fine with Database connection status checking...");
+    res.send("AutoQuest Server is active and waiting for Add Car data...");
 });
-
 
 app.listen(PORT, () => {
     console.log(`Server is perfectly running on port: ${PORT}`);
