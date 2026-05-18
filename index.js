@@ -3,15 +3,22 @@ dns.setServers(['8.8.8.8', '8.8.4.4']);
 
 const express = require('express');
 const { MongoClient, ServerApiVersion } = require('mongodb');
+
+const cors = require('cors'); 
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT 
 
+app.use(cors({
+  origin: ["http://localhost:3000"], 
+  
+  credentials: true 
+}));
+
 app.use(express.json());
 
 const uri = process.env.MONGO_URI;
-
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -28,12 +35,11 @@ async function run() {
     const db = client.db("autoQuestDB");
     const carsCollection = db.collection("cars");
 
-
+    // Add Car API
     app.post("/api/cars", async (req, res) => {
       try {
-        const newCar = req.body; 
+        const newCar = req.body;
         const result = await carsCollection.insertOne(newCar);
-        
         res.status(201).send({ success: true, insertedId: result.insertedId });
       } catch (error) {
         res.status(500).send({ success: false, message: error.message });
