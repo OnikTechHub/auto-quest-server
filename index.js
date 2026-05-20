@@ -95,6 +95,48 @@ async function run() {
       }
     });
     
+
+    // my-bookings API 
+
+    app.post("/api/bookings", async (req, res) => {
+      try {
+        const bookingData = req.body;
+        const result = await bookingsCollection.insertOne(bookingData);
+        res.send({ success: true, insertedId: result.insertedId });
+      } catch (error) {
+        res.status(500).send({ success: false, message: error.message });
+      }
+    });
+
+  //  User's Bookings 
+  
+    app.get("/api/bookings", async (req, res) => {
+      try {
+        const email = req.query.email;
+        if (!email) {
+          return res.status(400).send({ success: false, message: "Email query param is required" });
+        }
+        const query = { userEmail: email };
+        const result = await bookingsCollection.find(query).toArray();
+        res.send({ success: true, data: result });
+      } catch (error) {
+        res.status(500).send({ success: false, message: error.message });
+      }
+    });
+
+    // ==========================================
+    // 🎟️ ৩. Cancel/Delete Booking (DELETE)
+    // ==========================================
+    app.delete("/api/bookings/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await bookingsCollection.deleteOne(query);
+        res.send({ success: true, deletedCount: result.deletedCount });
+      } catch (error) {
+        res.status(500).send({ success: false, message: error.message });
+      }
+    });
   } catch (error) {
     console.error("Database connection error:", error);
   }
