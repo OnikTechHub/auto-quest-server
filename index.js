@@ -2,7 +2,6 @@ const dns = require('node:dns');
 dns.setServers(['8.8.8.8', '8.8.4.4']);
 
 const express = require('express');
-
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const cors = require('cors'); 
 require('dotenv').config();
@@ -33,8 +32,10 @@ async function run() {
 
     const db = client.db("autoQuestDB");
     const carsCollection = db.collection("cars");
+    
+    const bookingsCollection = db.collection("bookings"); 
 
-//  Add Car API 1
+    // Add Car API
 
     app.post("/api/cars", async (req, res) => {
       try {
@@ -46,7 +47,7 @@ async function run() {
       }
     });
 
-    // Add Car API 2
+    // All Cars API
 
     app.get("/api/cars", async (req, res) => {
       try {
@@ -57,12 +58,11 @@ async function run() {
       }
     });
 
-    //  Single Car Details API
+    // Single Car Details API
 
     app.get("/api/cars/:id", async (req, res) => {
       try {
         const id = req.params.id;
-        
         const query = { _id: new ObjectId(id) };
         const result = await carsCollection.findOne(query);
         
@@ -75,6 +75,25 @@ async function run() {
         res.status(500).send({ success: false, message: error.message });
       }
     });
+
+    // Book a Car API
+    app.post("/api/bookings", async (req, res) => {
+      try {
+        const bookingData = req.body;
+        const result = await bookingsCollection.insertOne(bookingData);
+        
+        if (bookingData.carId) {
+          await carsCollection.updateOne(
+            { _id: new ObjectId(bookingData.carId) },
+            { $inc: { bookingCount: 1 } }
+          );
+        }
+
+        res.status(201).send({ success: true, insertedId: result.insertedId });
+      } catch (error) {
+        res.status(500).send({ success: false, message: error.message });
+      }
+    });
     
   } catch (error) {
     console.error("Database connection error:", error);
@@ -83,7 +102,7 @@ async function run() {
 run().catch(console.dir);
 
 app.get('/', (req, res) => {
-    res.send("AutoQuest Server is active and waiting for Add Car data...");
+    res.send("AutoQuest Server is active and waiting for data...");
 });
 
 app.listen(PORT, () => {
