@@ -7,7 +7,7 @@ const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
-const PORT = process.env.PORT 
+const PORT = process.env.PORT || 5000; 
 
 app.use(cors({
   origin: ["http://localhost:3000"], 
@@ -32,14 +32,14 @@ async function run() {
 
     const db = client.db("autoQuestDB");
     const carsCollection = db.collection("cars");
-    
     const bookingsCollection = db.collection("bookings"); 
 
-    // Add Car API
-
+    //  Add Car API
     app.post("/api/cars", async (req, res) => {
       try {
         const newCar = req.body;
+       
+        if (!newCar.bookingCount) newCar.bookingCount = 0; 
         const result = await carsCollection.insertOne(newCar);
         res.status(201).send({ success: true, insertedId: result.insertedId });
       } catch (error) {
@@ -47,8 +47,7 @@ async function run() {
       }
     });
 
-    // All Cars API
-
+    //  All Cars API
     app.get("/api/cars", async (req, res) => {
       try {
         const result = await carsCollection.find().toArray();
@@ -58,8 +57,22 @@ async function run() {
       }
     });
 
-    // Single Car Details API
+    //  My Added Cars API
+    app.get("/api/my-cars", async (req, res) => {
+      try {
+        const email = req.query.email;
+        if (!email) {
+          return res.status(400).send({ success: false, message: "Email query param is required" });
+        }
+        const query = { userEmail: email }; 
+        const result = await carsCollection.find(query).toArray();
+        res.send({ success: true, data: result });
+      } catch (error) {
+        res.status(500).send({ success: false, message: error.message });
+      }
+    });
 
+    // ৪. Single Car Details API
     app.get("/api/cars/:id", async (req, res) => {
       try {
         const id = req.params.id;
@@ -76,7 +89,7 @@ async function run() {
       }
     });
 
-    // Book a Car API
+    // Book a Car API 
     app.post("/api/bookings", async (req, res) => {
       try {
         const bookingData = req.body;
@@ -94,22 +107,8 @@ async function run() {
         res.status(500).send({ success: false, message: error.message });
       }
     });
-    
 
-    // my-bookings API 
-
-    app.post("/api/bookings", async (req, res) => {
-      try {
-        const bookingData = req.body;
-        const result = await bookingsCollection.insertOne(bookingData);
-        res.send({ success: true, insertedId: result.insertedId });
-      } catch (error) {
-        res.status(500).send({ success: false, message: error.message });
-      }
-    });
-
-  //  User's Bookings 
-  
+    //  User's Bookings API
     app.get("/api/bookings", async (req, res) => {
       try {
         const email = req.query.email;
@@ -124,19 +123,30 @@ async function run() {
       }
     });
 
-    // ==========================================
-    // 🎟️ ৩. Cancel/Delete Booking (DELETE)
-    // ==========================================
+
+    // Delete Booking API 
+
     app.delete("/api/bookings/:id", async (req, res) => {
       try {
         const id = req.params.id;
-        const query = { _id: new ObjectId(id) };
-        const result = await bookingsCollection.deleteOne(query);
+        
+        const booking = await bookingsCollection.findOne({ _id: new ObjectId(id) });
+        
+        const result = await bookingsCollection.deleteOne({ _id: new ObjectId(id) });
+ 
+        if (result.deletedCount > 0 && booking && booking.carId) {
+          await carsCollection.updateOne(
+            { _id: new ObjectId(booking.carId) },
+            { $inc: { bookingCount: -1 } }
+          );
+        }
+
         res.send({ success: true, deletedCount: result.deletedCount });
       } catch (error) {
         res.status(500).send({ success: false, message: error.message });
       }
     });
+
   } catch (error) {
     console.error("Database connection error:", error);
   }
