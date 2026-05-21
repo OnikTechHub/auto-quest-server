@@ -11,7 +11,7 @@ const PORT = process.env.PORT
 
 app.use(
   cors({
-    origin: ["http://localhost:3000"],
+    origin: [process.env.CLIENT_URL], 
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization", "authorization"] 
   }),
@@ -30,8 +30,8 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    await client.connect();
-    console.log("Connected to MongoDB successfully! ");
+    // await client.connect();
+    // console.log("Connected to MongoDB successfully! ");
 
     const db = client.db("autoQuestDB");
     const carsCollection = db.collection("cars");
@@ -94,22 +94,22 @@ async function run() {
       }
     });
 
+    // Single Car Details API 
     app.get("/api/cars/:id", async (req, res) => {
-      const header = req.headers.authorization;
-
-      if (header !== "logged in") {
-        return res.status(401).json({ success: false, message: "Unauthorized access!" });
-      }
-
       try {
         const id = req.params.id;
+        
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).send({ success: false, message: "Invalid Vehicle ID format" });
+        }
+
         const query = { _id: new ObjectId(id) };
         const result = await carsCollection.findOne(query);
 
         if (result) {
           res.send({ success: true, data: result });
         } else {
-          res.status(404).send({ success: false, message: "Car not found" });
+          res.status(404).send({ success: false, message: "Vehicle not found" });
         }
       } catch (error) {
         res.status(500).send({ success: false, message: error.message });
@@ -143,7 +143,7 @@ async function run() {
       }
     });
 
-    // Book a Car API
+    //  Book a Car API 
     app.post("/api/bookings", async (req, res) => {
       try {
         const bookingData = req.body;
@@ -177,7 +177,7 @@ async function run() {
       }
     });
 
-    // Delete Booking API
+    //  Delete Booking API 
     app.delete("/api/bookings/:id", async (req, res) => {
       try {
         const id = req.params.id;
