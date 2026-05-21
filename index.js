@@ -50,7 +50,31 @@ async function run() {
     //  All Cars API
     app.get("/api/cars", async (req, res) => {
       try {
-        const result = await carsCollection.find().toArray();
+        // ফ্রন্টএন্ড থেকে পাঠানো ফিল্টারিং প্যারামিটারগুলো রিসিভ করা হচ্ছে
+        const { search, carType, sortBy } = req.query;
+        let query = {};
+
+        // কার নেম দিয়ে সার্চ করার লজিক
+        if (search) {
+          query.carName = { $regex: search, $options: "i" };
+        }
+
+        // কার টাইপ ফিল্টার করার লজিক
+        if (carType && carType !== "All") {
+          query.carType = carType;
+        }
+
+        // প্রাইস অনুযায়ী সর্ট করার লজিক 
+        let sortOptions = {};
+        if (sortBy === "priceLowHigh") {
+          sortOptions = { dailyPrice: 1 };  // কম থেকে বেশি
+        } else if (sortBy === "priceHighLow") {
+          sortOptions = { dailyPrice: -1 }; // বেশি থেকে কম
+        } else {
+          sortOptions = { _id: -1 };        // ডিফল্ট: নতুন এড করা গাড়ি আগে দেখাবে
+        }
+
+        const result = await carsCollection.find(query).sort(sortOptions).toArray();
         res.send({ success: true, data: result });
       } catch (error) {
         res.status(500).send({ success: false, message: error.message });
@@ -125,7 +149,6 @@ async function run() {
 
 
     // Delete Booking API 
-
     app.delete("/api/bookings/:id", async (req, res) => {
       try {
         const id = req.params.id;
@@ -146,6 +169,8 @@ async function run() {
         res.status(500).send({ success: false, message: error.message });
       }
     });
+
+    
 
   } catch (error) {
     console.error("Database connection error:", error);
