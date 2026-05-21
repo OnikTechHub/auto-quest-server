@@ -7,12 +7,13 @@ const cors = require("cors");
 require("dotenv").config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT 
 
 app.use(
   cors({
     origin: ["http://localhost:3000"],
     credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization", "authorization"] 
   }),
 );
 
@@ -40,7 +41,6 @@ async function run() {
     app.post("/api/cars", async (req, res) => {
       try {
         const newCar = req.body;
-
         if (!newCar.bookingCount) newCar.bookingCount = 0;
         const result = await carsCollection.insertOne(newCar);
         res.status(201).send({ success: true, insertedId: result.insertedId });
@@ -49,7 +49,7 @@ async function run() {
       }
     });
 
-    //  All Cars API
+    //  All Cars API 
     app.get("/api/cars", async (req, res) => {
       try {
         const { search, carType, sortBy } = req.query;
@@ -72,10 +72,7 @@ async function run() {
           sortOptions = { _id: -1 }; 
         }
 
-        const result = await carsCollection
-          .find(query)
-          .sort(sortOptions)
-          .toArray();
+        const result = await carsCollection.find(query).sort(sortOptions).toArray();
         res.send({ success: true, data: result });
       } catch (error) {
         res.status(500).send({ success: false, message: error.message });
@@ -87,9 +84,7 @@ async function run() {
       try {
         const email = req.query.email;
         if (!email) {
-          return res
-            .status(400)
-            .send({ success: false, message: "Email query param is required" });
+          return res.status(400).send({ success: false, message: "Email query param is required" });
         }
         const query = { userEmail: email };
         const result = await carsCollection.find(query).toArray();
@@ -99,8 +94,13 @@ async function run() {
       }
     });
 
-    //  Single Car Details API
     app.get("/api/cars/:id", async (req, res) => {
+      const header = req.headers.authorization;
+
+      if (header !== "logged in") {
+        return res.status(401).json({ success: false, message: "Unauthorized access!" });
+      }
+
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
@@ -111,6 +111,33 @@ async function run() {
         } else {
           res.status(404).send({ success: false, message: "Car not found" });
         }
+      } catch (error) {
+        res.status(500).send({ success: false, message: error.message });
+      }
+    });
+
+    //  Car Update API 
+    app.put("/api/cars/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const updatedData = req.body;
+        delete updatedData._id; 
+        const filter = { _id: new ObjectId(id) };
+        const updateDoc = { $set: updatedData };
+        const result = await carsCollection.updateOne(filter, updateDoc);
+        res.send({ success: true, data: result });
+      } catch (error) {
+        res.status(500).send({ success: false, message: error.message });
+      }
+    });
+
+    // Car Delete API
+    app.delete("/api/cars/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const filter = { _id: new ObjectId(id) };
+        const result = await carsCollection.deleteOne(filter);
+        res.send({ success: true, data: result });
       } catch (error) {
         res.status(500).send({ success: false, message: error.message });
       }
@@ -140,9 +167,7 @@ async function run() {
       try {
         const email = req.query.email;
         if (!email) {
-          return res
-            .status(400)
-            .send({ success: false, message: "Email query param is required" });
+          return res.status(400).send({ success: false, message: "Email query param is required" });
         }
         const query = { userEmail: email };
         const result = await bookingsCollection.find(query).toArray();
@@ -156,14 +181,8 @@ async function run() {
     app.delete("/api/bookings/:id", async (req, res) => {
       try {
         const id = req.params.id;
-
-        const booking = await bookingsCollection.findOne({
-          _id: new ObjectId(id),
-        });
-
-        const result = await bookingsCollection.deleteOne({
-          _id: new ObjectId(id),
-        });
+        const booking = await bookingsCollection.findOne({ _id: new ObjectId(id) });
+        const result = await bookingsCollection.deleteOne({ _id: new ObjectId(id) });
 
         if (result.deletedCount > 0 && booking && booking.carId) {
           await carsCollection.updateOne(
@@ -178,59 +197,6 @@ async function run() {
       }
     });
 
-    //  New Car API
-    app.post("/api/cars", async (req, res) => {
-      try {
-        const carData = req.body;
-        const result = await carsCollection.insertOne(carData);
-        res.send({ success: true, data: result });
-      } catch (error) {
-        res.status(500).send({ success: false, message: error.message });
-      }
-    });
-
-    
-    app.get("/api/my-cars", async (req, res) => {
-      try {
-        const email = req.query.email;
-        if (!email) {
-          return res.send({ success: true, data: [] });
-        }
-        
-        const query = { userEmail: email };
-        const result = await carsCollection.find(query).toArray();
-        res.send({ success: true, data: result });
-      } catch (error) {
-        res.status(500).send({ success: false, message: error.message });
-      }
-    });
-
-    //  Car Update API (Put)
-    app.put("/api/cars/:id", async (req, res) => {
-      try {
-        const id = req.params.id;
-        const updatedData = req.body;
-        delete updatedData._id; 
-        const filter = { _id: new ObjectId(id) };
-        const updateDoc = { $set: updatedData };
-        const result = await carsCollection.updateOne(filter, updateDoc);
-        res.send({ success: true, data: result });
-      } catch (error) {
-        res.status(500).send({ success: false, message: error.message });
-      }
-    });
-
-    // car delete API
-    app.delete("/api/cars/:id", async (req, res) => {
-      try {
-        const id = req.params.id;
-        const filter = { _id: new ObjectId(id) };
-        const result = await carsCollection.deleteOne(filter);
-        res.send({ success: true, data: result });
-      } catch (error) {
-        res.status(500).send({ success: false, message: error.message });
-      }
-    });
   } catch (error) {
     console.error("Database connection error:", error);
   }
