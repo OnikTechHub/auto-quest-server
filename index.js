@@ -1,18 +1,20 @@
-const dns = require('node:dns');
-dns.setServers(['8.8.8.8', '8.8.4.4']);
+const dns = require("node:dns");
+dns.setServers(["8.8.8.8", "8.8.4.4"]);
 
-const express = require('express');
-const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-const cors = require('cors'); 
-require('dotenv').config();
+const express = require("express");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const cors = require("cors");
+require("dotenv").config();
 
 const app = express();
-const PORT = process.env.PORT || 5000; 
+const PORT = process.env.PORT || 5000;
 
-app.use(cors({
-  origin: ["http://localhost:3000"], 
-  credentials: true 
-}));
+app.use(
+  cors({
+    origin: ["http://localhost:3000"],
+    credentials: true,
+  }),
+);
 
 app.use(express.json());
 
@@ -22,24 +24,24 @@ const client = new MongoClient(uri, {
     version: ServerApiVersion.v1,
     strict: true,
     deprecationErrors: true,
-  }
+  },
 });
 
 async function run() {
   try {
     await client.connect();
-    console.log("Connected to MongoDB successfully! 🎉");
+    console.log("Connected to MongoDB successfully! ");
 
     const db = client.db("autoQuestDB");
     const carsCollection = db.collection("cars");
-    const bookingsCollection = db.collection("bookings"); 
+    const bookingsCollection = db.collection("bookings");
 
     //  Add Car API
     app.post("/api/cars", async (req, res) => {
       try {
         const newCar = req.body;
-       
-        if (!newCar.bookingCount) newCar.bookingCount = 0; 
+
+        if (!newCar.bookingCount) newCar.bookingCount = 0;
         const result = await carsCollection.insertOne(newCar);
         res.status(201).send({ success: true, insertedId: result.insertedId });
       } catch (error) {
@@ -50,31 +52,30 @@ async function run() {
     //  All Cars API
     app.get("/api/cars", async (req, res) => {
       try {
-        // ফ্রন্টএন্ড থেকে পাঠানো ফিল্টারিং প্যারামিটারগুলো রিসিভ করা হচ্ছে
         const { search, carType, sortBy } = req.query;
         let query = {};
 
-        // কার নেম দিয়ে সার্চ করার লজিক
         if (search) {
           query.carName = { $regex: search, $options: "i" };
         }
 
-        // কার টাইপ ফিল্টার করার লজিক
         if (carType && carType !== "All") {
           query.carType = carType;
         }
 
-        // প্রাইস অনুযায়ী সর্ট করার লজিক 
         let sortOptions = {};
         if (sortBy === "priceLowHigh") {
-          sortOptions = { dailyPrice: 1 };  // কম থেকে বেশি
+          sortOptions = { dailyPrice: 1 }; 
         } else if (sortBy === "priceHighLow") {
-          sortOptions = { dailyPrice: -1 }; // বেশি থেকে কম
+          sortOptions = { dailyPrice: -1 }; 
         } else {
-          sortOptions = { _id: -1 };        // ডিফল্ট: নতুন এড করা গাড়ি আগে দেখাবে
+          sortOptions = { _id: -1 }; 
         }
 
-        const result = await carsCollection.find(query).sort(sortOptions).toArray();
+        const result = await carsCollection
+          .find(query)
+          .sort(sortOptions)
+          .toArray();
         res.send({ success: true, data: result });
       } catch (error) {
         res.status(500).send({ success: false, message: error.message });
@@ -86,9 +87,11 @@ async function run() {
       try {
         const email = req.query.email;
         if (!email) {
-          return res.status(400).send({ success: false, message: "Email query param is required" });
+          return res
+            .status(400)
+            .send({ success: false, message: "Email query param is required" });
         }
-        const query = { userEmail: email }; 
+        const query = { userEmail: email };
         const result = await carsCollection.find(query).toArray();
         res.send({ success: true, data: result });
       } catch (error) {
@@ -96,13 +99,13 @@ async function run() {
       }
     });
 
-    // ৪. Single Car Details API
+    //  Single Car Details API
     app.get("/api/cars/:id", async (req, res) => {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
         const result = await carsCollection.findOne(query);
-        
+
         if (result) {
           res.send({ success: true, data: result });
         } else {
@@ -113,16 +116,16 @@ async function run() {
       }
     });
 
-    // Book a Car API 
+    // Book a Car API
     app.post("/api/bookings", async (req, res) => {
       try {
         const bookingData = req.body;
         const result = await bookingsCollection.insertOne(bookingData);
-        
+
         if (bookingData.carId) {
           await carsCollection.updateOne(
             { _id: new ObjectId(bookingData.carId) },
-            { $inc: { bookingCount: 1 } }
+            { $inc: { bookingCount: 1 } },
           );
         }
 
@@ -137,7 +140,9 @@ async function run() {
       try {
         const email = req.query.email;
         if (!email) {
-          return res.status(400).send({ success: false, message: "Email query param is required" });
+          return res
+            .status(400)
+            .send({ success: false, message: "Email query param is required" });
         }
         const query = { userEmail: email };
         const result = await bookingsCollection.find(query).toArray();
@@ -147,20 +152,23 @@ async function run() {
       }
     });
 
-
-    // Delete Booking API 
+    // Delete Booking API
     app.delete("/api/bookings/:id", async (req, res) => {
       try {
         const id = req.params.id;
-        
-        const booking = await bookingsCollection.findOne({ _id: new ObjectId(id) });
-        
-        const result = await bookingsCollection.deleteOne({ _id: new ObjectId(id) });
- 
+
+        const booking = await bookingsCollection.findOne({
+          _id: new ObjectId(id),
+        });
+
+        const result = await bookingsCollection.deleteOne({
+          _id: new ObjectId(id),
+        });
+
         if (result.deletedCount > 0 && booking && booking.carId) {
           await carsCollection.updateOne(
             { _id: new ObjectId(booking.carId) },
-            { $inc: { bookingCount: -1 } }
+            { $inc: { bookingCount: -1 } },
           );
         }
 
@@ -170,18 +178,69 @@ async function run() {
       }
     });
 
-    
+    //  New Car API
+    app.post("/api/cars", async (req, res) => {
+      try {
+        const carData = req.body;
+        const result = await carsCollection.insertOne(carData);
+        res.send({ success: true, data: result });
+      } catch (error) {
+        res.status(500).send({ success: false, message: error.message });
+      }
+    });
 
+    
+    app.get("/api/my-cars", async (req, res) => {
+      try {
+        const email = req.query.email;
+        if (!email) {
+          return res.send({ success: true, data: [] });
+        }
+        
+        const query = { userEmail: email };
+        const result = await carsCollection.find(query).toArray();
+        res.send({ success: true, data: result });
+      } catch (error) {
+        res.status(500).send({ success: false, message: error.message });
+      }
+    });
+
+    //  Car Update API (Put)
+    app.put("/api/cars/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const updatedData = req.body;
+        delete updatedData._id; 
+        const filter = { _id: new ObjectId(id) };
+        const updateDoc = { $set: updatedData };
+        const result = await carsCollection.updateOne(filter, updateDoc);
+        res.send({ success: true, data: result });
+      } catch (error) {
+        res.status(500).send({ success: false, message: error.message });
+      }
+    });
+
+    // car delete API
+    app.delete("/api/cars/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const filter = { _id: new ObjectId(id) };
+        const result = await carsCollection.deleteOne(filter);
+        res.send({ success: true, data: result });
+      } catch (error) {
+        res.status(500).send({ success: false, message: error.message });
+      }
+    });
   } catch (error) {
     console.error("Database connection error:", error);
   }
 }
 run().catch(console.dir);
 
-app.get('/', (req, res) => {
-    res.send("AutoQuest Server is active and waiting for data...");
+app.get("/", (req, res) => {
+  res.send("AutoQuest Server is active and waiting for data...");
 });
 
 app.listen(PORT, () => {
-    console.log(`Server is perfectly running on port: ${PORT}`);
+  console.log(`Server is perfectly running on port: ${PORT}`);
 });
